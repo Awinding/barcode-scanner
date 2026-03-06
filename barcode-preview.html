@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>條碼掃描系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+TC:wght@400;500;600;700&display=swap');
+:root{--bg:#f0eeea;--white:#ffffff;--border:#d5d2cc;--navy:#1b2340;--navy2:#2c3660;--ink:#1a1a1a;--muted:#888480;--orange:#d4500a;--or-bg:#fde8dc;--green:#1a9454;--gr-bg:#d5f0e3;--red:#c0392b;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans TC',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased}
+.app{display:flex;flex-direction:column;height:100vh}
+.hdr{background:var(--navy);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.hdr-title{font-family:var(--mono);font-size:0.85rem;color:#fff;letter-spacing:2px;font-weight:600}
+.hdr-pill{font-family:var(--mono);font-size:0.62rem;font-weight:500;letter-spacing:1px;background:var(--orange);color:#fff;padding:3px 9px;border-radius:99px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--navy2);flex-shrink:0}
+.tab{padding:10px 2px 8px;text-align:center;font-size:0.68rem;font-weight:600;color:rgba(255,255,255,0.4);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;user-select:none}
+.tab.on{color:#fff;border-bottom-color:var(--orange)}
+.panels{flex:1;overflow:hidden;position:relative}
+.panel{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;display:none;-webkit-overflow-scrolling:touch}
+.panel.on{display:block}
+
+/* SCAN */
+.cam-wrap{width:100%;background:#111;position:relative}
+.cam-placeholder{width:100%;aspect-ratio:4/3;background:#111;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.cam-placeholder-txt{color:rgba(255,255,255,.3);font-size:.8rem;font-family:var(--mono);text-align:center}
+.vf{position:absolute;inset:0;pointer-events:none}
+.vf-corner{position:absolute;width:20px;height:20px;border:2.5px solid var(--orange)}
+.vf-box{position:absolute;top:25%;left:12%;right:12%;bottom:25%}
+.tl{top:0;left:0;border-right:none;border-bottom:none}
+.tr{top:0;right:0;border-left:none;border-bottom:none}
+.bl{bottom:0;left:0;border-right:none;border-top:none}
+.br{bottom:0;right:0;border-left:none;border-top:none}
+@keyframes sw{0%{top:25%}50%{top:73%}100%{top:25%}}
+.vf-line{position:absolute;left:12%;right:12%;height:1.5px;background:linear-gradient(90deg,transparent,var(--orange),transparent);box-shadow:0 0 8px var(--orange);animation:sw 2.2s ease-in-out infinite}
+.cam-bar{background:var(--navy);padding:8px 14px;display:flex;align-items:center;gap:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.live{background:var(--green);box-shadow:0 0 5px var(--green);animation:bl 1.4s infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+.cam-txt{font-family:var(--mono);font-size:0.68rem;color:rgba(255,255,255,.6);flex:1}
+.cam-btns{display:flex;gap:8px;padding:10px 14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:none;border-radius:8px;cursor:pointer;font-family:var(--sans);font-size:0.83rem;font-weight:600;padding:10px 16px;transition:all .15s;user-select:none;touch-action:manipulation}
+.btn-primary{background:var(--orange);color:#fff;flex:1}
+.btn-primary:active{background:#b04008}
+.btn-outline{background:var(--white);color:var(--ink);border:1.5px solid var(--border)}
+.btn-outline:active{background:var(--bg)}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:active{background:#147040}
+.btn-red{background:transparent;color:var(--red);border:1.5px solid rgba(192,57,43,.3);font-size:0.78rem}
+.sec{padding:0 14px 14px}
+.sec-lbl{font-size:0.65rem;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.row{display:flex;gap:8px}
+.field{flex:1;background:var(--white);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:var(--mono);font-size:0.88rem;color:var(--ink);-webkit-appearance:none}
+.field:focus{outline:none;border-color:var(--orange)}
+.field::placeholder{font-size:0.75rem;color:var(--muted);font-family:var(--sans)}
+.demo-note{margin:0 14px;padding:8px 12px;background:rgba(26,148,84,.1);border:1px solid rgba(26,148,84,.3);border-radius:7px;font-size:.72rem;color:var(--green);font-weight:500}
+
+/* SHEET */
+.qty-sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;backdrop-filter:blur(2px)}
+.qty-sheet-bg.show{display:block}
+.qty-sheet{position:fixed;bottom:0;left:0;right:0;z-index:201;background:var(--white);border-radius:20px 20px 0 0;padding:0 20px 32px;transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.1,.64,1);max-width:520px;margin:0 auto}
+.qty-sheet.show{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;border-radius:99px;background:var(--border);margin:10px auto 18px}
+.sheet-code{font-family:var(--mono);font-size:1.05rem;font-weight:600;letter-spacing:3px;color:var(--ink);margin-bottom:2px}
+.sheet-type{display:inline-block;font-family:var(--mono);font-size:0.65rem;padding:2px 7px;border-radius:4px;margin-bottom:16px}
+.t13{background:var(--or-bg);color:var(--orange)}
+.t8{background:#e8ecf8;color:var(--navy2)}
+.tupc{background:#edf7ed;color:var(--green)}
+.sheet-row{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.sheet-row label{font-size:0.72rem;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase}
+.qty-big-input{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:2rem;font-weight:600;color:var(--orange);text-align:center;letter-spacing:4px;-webkit-appearance:none}
+.qty-big-input:focus{outline:none;border-color:var(--orange);background:#fff}
+.shelf-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;font-family:var(--sans);font-size:0.95rem;color:var(--ink);-webkit-appearance:none}
+.shelf-input:focus{outline:none;border-color:var(--orange);background:#fff}
+.shelf-input::placeholder{color:var(--muted)}
+.shelf-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:99px;font-size:0.75rem;font-weight:500;color:var(--ink);cursor:pointer;transition:all .15s}
+.chip:active,.chip.sel{background:var(--navy);color:#fff;border-color:var(--navy)}
+.sheet-btn{width:100%;padding:15px;font-size:1rem;border-radius:12px;margin-top:4px}
+
+/* LIST */
+.list-hdr{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--white);position:sticky;top:0;z-index:10}
+.lhc{font-family:var(--mono);font-size:0.75rem;color:var(--muted)}
+.lhc b{color:var(--orange)}
+.items-wrap{padding:10px 14px;display:flex;flex-direction:column;gap:8px;padding-bottom:80px}
+.item-card{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.item-idx{width:22px;height:22px;border-radius:50%;background:var(--bg);font-family:var(--mono);font-size:0.62rem;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.item-info{flex:1;min-width:0}
+.item-code{font-family:var(--mono);font-size:0.82rem;color:var(--ink);letter-spacing:1.5px}
+.item-shelf{font-size:0.72rem;color:var(--navy2);font-weight:600;margin-top:2px}
+.item-shelf span{background:#e8ecf8;padding:1px 7px;border-radius:4px}
+.idel{width:26px;height:26px;border-radius:6px;border:none;background:transparent;color:#ccc;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.idel:active{color:var(--red)}
+.list-footer{position:sticky;bottom:0;background:var(--white);border-top:1px solid var(--border);padding:10px 14px;display:flex;gap:8px}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:10px;color:var(--muted)}
+.empty-state .big{font-size:2.5rem;opacity:.25}
+
+/* SHELF */
+.shelf-toolbar{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--white);position:sticky;top:0;z-index:10}
+.shelf-add-row{padding:12px 14px;display:flex;gap:8px;background:var(--white);border-bottom:1px solid var(--border)}
+.shelf-add-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:var(--sans);font-size:0.88rem;color:var(--ink);-webkit-appearance:none}
+.shelf-add-input:focus{outline:none;border-color:var(--orange)}
+.shelf-add-input::placeholder{color:var(--muted)}
+.shelves-wrap{padding:10px 14px;display:flex;flex-direction:column;gap:12px;padding-bottom:40px}
+.shelf-block{background:var(--white);border:1.5px solid var(--border);border-radius:12px;overflow:hidden}
+.shelf-block-hdr{padding:10px 14px;background:var(--navy);display:flex;align-items:center;justify-content:space-between}
+.shelf-block-name{font-family:var(--mono);font-size:0.85rem;color:#fff;font-weight:600;letter-spacing:1px}
+.shelf-block-count{font-family:var(--mono);font-size:0.65rem;color:rgba(255,255,255,.5)}
+.shelf-block-del{background:transparent;border:none;color:rgba(255,255,255,.4);font-size:0.8rem;cursor:pointer;padding:2px 6px}
+.shelf-items{padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+.shelf-item-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bg)}
+.shelf-item-row:last-child{border-bottom:none}
+.si-code{font-family:var(--mono);font-size:0.78rem;color:var(--ink);flex:1;letter-spacing:1px}
+.si-qty{font-family:var(--mono);font-size:0.85rem;color:var(--orange);font-weight:600;background:var(--or-bg);padding:2px 8px;border-radius:5px}
+.si-type{font-family:var(--mono);font-size:0.6rem;color:var(--muted)}
+.shelf-unassigned{margin:12px 14px;padding:12px 14px;background:var(--white);border:1.5px dashed var(--border);border-radius:10px}
+.shelf-unassigned-lbl{font-size:0.65rem;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+
+/* PRINT */
+.print-info{margin:12px 14px 0;padding:10px 13px;background:var(--white);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:10px}
+.pi-icon{font-size:1.2rem}
+.pi-txt{font-size:0.75rem;color:var(--muted);line-height:1.5}
+.pi-txt b{color:var(--ink)}
+.pv-wrap{padding:12px 14px;display:flex;flex-direction:column;gap:14px;padding-bottom:80px}
+
+/* shelf section in preview */
+.pv-section{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.pv-section-hdr{background:var(--navy);padding:7px 12px;display:flex;align-items:center;justify-content:space-between}
+.pv-section-name{font-family:var(--mono);font-size:0.78rem;color:#fff;font-weight:600;letter-spacing:1px}
+.pv-section-count{font-family:var(--mono);font-size:0.62rem;color:rgba(255,255,255,.5)}
+.pv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)}
+.pv-cell{background:#fff;padding:4px 3px 2px;display:flex;flex-direction:column;align-items:center;min-height:54px;overflow:hidden}
+.pv-qty{font-family:var(--mono);font-size:0.7rem;font-weight:700;color:var(--ink);line-height:1;margin-bottom:1px}
+.pv-cell svg{max-width:100%;height:auto}
+.pv-empty{background:var(--bg);display:flex;align-items:center;justify-content:center}
+.pv-empty span{font-size:0.55rem;color:var(--border)}
+.print-footer{position:sticky;bottom:0;background:var(--white);border-top:1px solid var(--border);padding:10px 14px}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--navy);color:#fff;padding:9px 18px;border-radius:99px;font-size:0.8rem;font-weight:500;z-index:9999;pointer-events:none;transition:transform .25s cubic-bezier(.34,1.56,.64,1);white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{background:var(--green)}
+.toast.bad{background:var(--red)}
+
+@keyframes fl{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.flash-ov{position:absolute;inset:0;background:rgba(26,148,84,.4);pointer-events:none;animation:fl .45s ease forwards}
+
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff}
+  .app{display:none}
+  #pdoc{display:block!important}
+  @page{size:A4 portrait;margin:6mm}
+
+  /* shelf section */
+  .p-section{margin-bottom:3mm;page-break-inside:auto}
+  .p-shelf-hdr{
+    background:#1b2340 !important;color:#fff !important;
+    padding:2.5mm 3mm;
+    display:grid;grid-template-columns:1fr auto;align-items:center;
+    margin-bottom:1mm;
+    border-radius:1mm;
+  }
+  .p-shelf-hdr-name{font-family:'Helvetica Neue',Arial,sans-serif;font-size:9pt;font-weight:700;letter-spacing:1pt}
+  .p-shelf-hdr-count{font-family:'Helvetica Neue',Arial,sans-serif;font-size:7pt;opacity:.6}
+
+  #pdoc .pg{display:grid;grid-template-columns:repeat(4,1fr);gap:0.8mm;width:100%;margin-bottom:1mm}
+  .pl{width:100%;height:22mm;border:0.3pt solid #ccc;padding:0.5mm 1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;background:#fff;page-break-inside:avoid}
+  .pl-qty{font-family:'Helvetica Neue',Arial,sans-serif;font-size:9pt;font-weight:900;color:#000;line-height:1;margin-bottom:0.5mm;text-align:center;width:100%}
+  .pl-bc{flex:1;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden}
+  .pl-bc svg{max-width:100%;height:auto;max-height:13mm}
+}
+#pdoc{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div class="hdr-title">▐ BARCODE</div>
+    <div class="hdr-pill">A4 · 48/頁</div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" id="tab-scan" onclick="goTab('scan')">📷 掃描</div>
+    <div class="tab" id="tab-list" onclick="goTab('list')">清單<span id="bdg" style="display:none;background:var(--orange);color:#fff;border-radius:99px;padding:0 5px;font-size:.6rem;margin-left:3px">0</span></div>
+    <div class="tab" id="tab-shelf" onclick="goTab('shelf')">🗄 貨架</div>
+    <div class="tab" id="tab-print" onclick="goTab('print');renderPreview()">🖨 列印</div>
+  </div>
+  <div class="panels">
+
+    <!-- SCAN -->
+    <div class="panel on" id="p-scan">
+      <div class="cam-wrap">
+        <div class="cam-placeholder">
+          <div class="vf">
+            <div class="vf-box">
+              <div class="vf-corner tl"></div><div class="vf-corner tr"></div>
+              <div class="vf-corner bl"></div><div class="vf-corner br"></div>
+            </div>
+            <div class="vf-line"></div>
+          </div>
+          <div class="cam-placeholder-txt">📷 相機區域<br><span style="font-size:.65rem;opacity:.6">（需 HTTPS 環境啟動）</span></div>
+        </div>
+      </div>
+      <div class="cam-bar">
+        <div class="dot live" id="sdot"></div>
+        <div class="cam-txt" id="stxt">預覽模式 — 可使用下方手動輸入測試</div>
+      </div>
+      <div class="cam-btns">
+        <button class="btn btn-primary" onclick="toast('需 HTTPS 環境才能啟動相機','bad')">▶ 啟動相機</button>
+      </div>
+      <div class="demo-note" style="margin-bottom:10px">
+        💡 <b>預覽模式</b>：輸入條碼號碼測試完整流程（EAN-13 / EAN-8 / UPC-A）
+      </div>
+      <div class="sec">
+        <div class="sec-lbl">輸入條碼</div>
+        <div class="row">
+          <input class="field" id="min" type="tel" inputmode="numeric"
+            placeholder="輸入 8、12 或 13 位數字…" maxlength="13"
+            onkeydown="if(event.key==='Enter')manualGo()">
+          <button class="btn btn-outline" onclick="manualGo()" style="white-space:nowrap;padding:9px 14px">確認</button>
+        </div>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+
+    <!-- LIST -->
+    <div class="panel" id="p-list">
+      <div class="list-hdr">
+        <div class="lhc">共 <b id="lc-n">0</b> 筆 / 合計 <b id="lc-t">0</b> 件</div>
+        <button class="btn btn-red" onclick="clearAll()">清除全部</button>
+      </div>
+      <div id="items-wrap"></div>
+      <div class="list-footer">
+        <button class="btn btn-primary" style="flex:1" onclick="goTab('print');renderPreview()">前往列印 →</button>
+      </div>
+    </div>
+
+    <!-- SHELF -->
+    <div class="panel" id="p-shelf">
+      <div class="shelf-toolbar">
+        <div style="font-size:.78rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase">貨架資料</div>
+        <div style="font-family:var(--mono);font-size:.72rem;color:var(--muted)"><b id="sh-cnt" style="color:var(--orange)">0</b> 個貨架</div>
+      </div>
+      <div class="shelf-add-row">
+        <input class="shelf-add-input" id="new-shelf" type="text"
+          placeholder="新增貨架，例如：A貨架、冷凍區…" maxlength="20"
+          onkeydown="if(event.key==='Enter')addShelf()">
+        <button class="btn btn-primary" onclick="addShelf()" style="white-space:nowrap;padding:9px 16px">新增</button>
+      </div>
+      <div id="shelves-wrap" class="shelves-wrap"></div>
+    </div>
+
+    <!-- PRINT -->
+    <div class="panel" id="p-print">
+      <div class="print-info">
+        <div class="pi-icon">📄</div>
+        <div class="pi-txt"><b>A4 直向</b> — 4 欄 × 12 列 = <b>48 標籤/頁</b><br>每筆掃描 = 1 張標籤，數量顯示在條碼<b>上方</b></div>
+      </div>
+      <div class="pv-wrap" id="pv-wrap">
+        <div class="empty-state"><div class="big">🖨️</div><div>清單為空</div></div>
+      </div>
+      <div class="print-footer">
+        <button class="btn btn-primary" style="width:100%" onclick="doPrint()">🖨 列印 A4</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pdoc"></div>
+
+<!-- QTY SHEET -->
+<div class="qty-sheet-bg" id="sheet-bg" onclick="closeSheet()">
+  <div class="qty-sheet" id="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-code" id="sh-code">—</div>
+    <span class="sheet-type" id="sh-type">—</span>
+    <div class="sheet-row">
+      <label>商品數量（這個位置有幾個）</label>
+      <input class="qty-big-input" id="sh-qty" type="number" inputmode="numeric"
+        min="1" max="9999" value="1"
+        onkeydown="if(event.key==='Enter')document.getElementById('sh-shelf-input').focus()">
+    </div>
+    <div class="sheet-row">
+      <label>貨架（選填）</label>
+      <input class="shelf-input" id="sh-shelf-input" type="text"
+        placeholder="選擇或輸入貨架名稱…"
+        onkeydown="if(event.key==='Enter')confirmAdd()">
+      <div class="shelf-chips" id="sh-chips"></div>
+    </div>
+    <button class="btn btn-green sheet-btn" onclick="confirmAdd()">✓ 確認加入</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let items=[],shelves=[],pCode=null,pType=null,cooldown=false,lastShelf='';
+
+function goTab(t){
+  ['scan','list','shelf','print'].forEach(id=>{
+    document.getElementById('p-'+id).classList.toggle('on',id===t);
+    document.getElementById('tab-'+id).classList.toggle('on',id===t);
+  });
+  if(t==='list')renderList();
+  if(t==='shelf')renderShelves();
+}
+
+let _tid;
+function toast(m,c=''){
+  const el=document.getElementById('toast');
+  el.textContent=m;el.className='toast show'+(c?' '+c:'');
+  clearTimeout(_tid);_tid=setTimeout(()=>el.className='toast',2300);
+}
+
+function dtype(c){
+  if(/^\d{13}$/.test(c))return'EAN-13';
+  if(/^\d{12}$/.test(c))return'UPC-A';
+  if(/^\d{8}$/.test(c))return'EAN-8';
+  return null;
+}
+
+function handleCode(code){
+  if(cooldown)return;
+  const type=dtype(code);
+  if(!type)return;
+  cooldown=true;setTimeout(()=>cooldown=false,1800);
+  openSheet(code,type);
+}
+
+function openSheet(code,type){
+  pCode=code;pType=type;
+  document.getElementById('sh-code').textContent=code;
+  const el=document.getElementById('sh-type');
+  el.textContent=type;el.className='sheet-type '+(type==='EAN-13'?'t13':type==='UPC-A'?'tupc':'t8');
+  document.getElementById('sh-qty').value='1';
+  document.getElementById('sh-shelf-input').value=lastShelf;
+  renderChips();
+  document.getElementById('sheet-bg').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+  setTimeout(()=>{const q=document.getElementById('sh-qty');q.focus();q.select();},320);
+}
+
+function closeSheet(){
+  document.getElementById('sheet-bg').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+  pCode=null;pType=null;
+}
+
+function renderChips(){
+  const wrap=document.getElementById('sh-chips');
+  const cur=document.getElementById('sh-shelf-input').value;
+  wrap.innerHTML=shelves.map(s=>`<div class="chip${s===cur?' sel':''}" onclick="pickChip('${esc(s)}')">${esc(s)}</div>`).join('');
+}
+
+function pickChip(s){document.getElementById('sh-shelf-input').value=s;renderChips();}
+
+function confirmAdd(){
+  if(!pCode)return;
+  const qty=Math.max(1,parseInt(document.getElementById('sh-qty').value)||1);
+  const shelf=document.getElementById('sh-shelf-input').value.trim();
+  lastShelf=shelf;
+  if(shelf&&!shelves.includes(shelf))shelves.push(shelf);
+  items.push({code:pCode,type:pType,qty,shelf});
+  toast('✓ …'+pCode.slice(-6)+' ×'+qty,'ok');
+  updateBadge();
+  closeSheet();
+}
+
+function manualGo(){
+  const v=document.getElementById('min').value.trim();
+  const t=dtype(v);
+  if(!t){toast('請輸入 8、12 或 13 位數字','bad');return;}
+  document.getElementById('min').value='';
+  handleCode(v);
+}
+
+function updateBadge(){
+  const b=document.getElementById('bdg');
+  const totalQty=items.reduce((s,i)=>s+i.qty,0);
+  b.textContent=items.length;b.style.display=items.length?'inline':'none';
+  const lc=document.getElementById('lc-n'),lt=document.getElementById('lc-t');
+  if(lc)lc.textContent=items.length;if(lt)lt.textContent=totalQty;
+}
+
+function renderList(){
+  const c=document.getElementById('items-wrap');
+  updateBadge();
+  if(!items.length){c.innerHTML='<div class="empty-state"><div class="big">📦</div><div>尚未掃描任何條碼</div></div>';return;}
+  c.innerHTML='<div class="items-wrap">'+items.map((item,i)=>`
+    <div class="item-card">
+      <div class="item-idx">${i+1}</div>
+      <div class="item-info">
+        <div class="item-code">${item.code}</div>
+        ${item.shelf?`<div class="item-shelf"><span>🗄 ${esc(item.shelf)}</span></div>`:''}
+        <span class="sheet-type ${item.type==='EAN-13'?'t13':item.type==='UPC-A'?'tupc':'t8'}" style="font-size:.58rem;padding:1px 5px">${item.type}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <div style="background:var(--or-bg);color:var(--orange);font-family:var(--mono);font-size:1rem;font-weight:700;padding:4px 10px;border-radius:7px;min-width:36px;text-align:center">${item.qty}</div>
+        <div style="font-size:.65rem;color:var(--muted)">件</div>
+      </div>
+      <button class="idel" onclick="del(${i})">✕</button>
+    </div>`).join('')+'</div>';
+}
+
+function del(i){items.splice(i,1);updateBadge();renderList();}
+function clearAll(){if(!items.length)return;if(!confirm('確定清除所有項目？'))return;items=[];updateBadge();renderList();}
+
+function addShelf(){
+  const v=document.getElementById('new-shelf').value.trim();
+  if(!v){toast('請輸入貨架名稱','bad');return;}
+  if(shelves.includes(v)){toast('已存在','bad');return;}
+  shelves.push(v);document.getElementById('new-shelf').value='';
+  renderShelves();toast('貨架已新增 ✓','ok');
+}
+
+function deleteShelf(s){
+  if(!confirm('刪除貨架「'+s+'」？'))return;
+  shelves=shelves.filter(x=>x!==s);renderShelves();
+}
+
+function renderShelves(){
+  const wrap=document.getElementById('shelves-wrap');
+  document.getElementById('sh-cnt').textContent=shelves.length;
+  if(!shelves.length&&!items.length){
+    wrap.innerHTML='<div class="empty-state"><div class="big">🗄️</div><div>尚無貨架資料</div><div style="font-size:.78rem">請先新增貨架名稱</div></div>';return;
+  }
+  let html='';
+  const unassigned=items.filter(i=>!i.shelf);
+  if(unassigned.length){
+    html+=`<div class="shelf-unassigned"><div class="shelf-unassigned-lbl">⚠️ 未分配貨架 (${unassigned.length} 筆)</div>
+    ${unassigned.map(it=>`<div class="shelf-item-row"><div class="si-code">${it.code}</div><div class="si-type">${it.type}</div><div class="si-qty">${it.qty} 件</div></div>`).join('')}</div>`;
+  }
+  shelves.forEach(s=>{
+    const sit=items.filter(i=>i.shelf===s);
+    const total=sit.reduce((x,i)=>x+i.qty,0);
+    html+=`<div class="shelf-block"><div class="shelf-block-hdr">
+      <div class="shelf-block-name">🗄 ${esc(s)}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="shelf-block-count">${sit.length} 筆 / ${total} 件</div>
+        <button class="shelf-block-del" onclick="deleteShelf('${esc(s)}')">✕</button>
+      </div></div>
+      <div class="shelf-items">${sit.length
+        ?sit.map(it=>`<div class="shelf-item-row"><div class="si-code">${it.code}</div><div class="si-type">${it.type}</div><div class="si-qty">${it.qty} 件</div></div>`).join('')
+        :'<div style="font-size:.75rem;color:var(--muted);padding:4px 0">此貨架尚無商品</div>'
+      }</div></div>`;
+  });
+  wrap.innerHTML=html;
+}
+
+function bcFormat(type){return type==='EAN-13'?'EAN13':type==='UPC-A'?'UPC':type==='EAN-8'?'EAN8':'EAN13';}
+
+function getGroups(){
+  // returns [{shelfLabel, items:[...]}] — unassigned first, then each shelf
+  const groups=[];
+  const unassigned=items.filter(i=>!i.shelf);
+  if(unassigned.length) groups.push({shelfLabel:'（未分配貨架）',items:unassigned,unassigned:true});
+  // preserve shelf order as they appear in items
+  const seen=[];
+  items.forEach(i=>{ if(i.shelf&&!seen.includes(i.shelf)) seen.push(i.shelf); });
+  seen.forEach(s=> groups.push({shelfLabel:s,items:items.filter(i=>i.shelf===s)}));
+  return groups;
+}
+
+function renderPreview(){
+  const wrap=document.getElementById('pv-wrap');
+  if(!items.length){wrap.innerHTML='<div class="empty-state"><div class="big">🖨️</div><div>清單為空</div></div>';return;}
+
+  const groups=getGroups();
+  let svgIdx=0;
+  let html='';
+
+  groups.forEach((g,gi)=>{
+    const total=g.items.reduce((s,i)=>s+i.qty,0);
+    // pad to multiple of 4 for clean rows
+    const cells=[...g.items];
+    const rem=cells.length%4; if(rem) for(let x=0;x<4-rem;x++) cells.push(null);
+
+    html+=`<div class="pv-section">
+      <div class="pv-section-hdr">
+        <div class="pv-section-name">🗄 ${esc(g.shelfLabel)}</div>
+        <div class="pv-section-count">${g.items.length} 筆 · ${total} 件</div>
+      </div>
+      <div class="pv-grid" id="pvg${gi}">
+        ${cells.map((c,ci)=>{
+          if(!c) return`<div class="pv-cell pv-empty"><span>—</span></div>`;
+          const sid=`pvs${gi}_${ci}`;
+          return`<div class="pv-cell"><div class="pv-qty">${c.qty}</div><svg id="${sid}"></svg></div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+
+  wrap.innerHTML=html;
+
+  // render barcodes
+  groups.forEach((g,gi)=>{
+    const cells=[...g.items];
+    const rem=cells.length%4; if(rem) for(let x=0;x<4-rem;x++) cells.push(null);
+    cells.forEach((item,ci)=>{
+      if(!item)return;
+      try{JsBarcode(`#pvs${gi}_${ci}`,item.code,{format:bcFormat(item.type),width:1,height:26,displayValue:true,fontSize:6,margin:1,background:'#fff',lineColor:'#000',textMargin:1});}catch(e){}
+    });
+  });
+}
+
+function doPrint(){
+  if(!items.length){toast('清單為空','bad');return;}
+  const groups=getGroups();
+  const doc=document.getElementById('pdoc');
+
+  // Build HTML: for each shelf group → header div + rows of 4 labels
+  let html='';
+  groups.forEach(g=>{
+    const total=g.items.reduce((s,i)=>s+i.qty,0);
+    // chunk into rows of 4
+    const rows=[];
+    for(let i=0;i<g.items.length;i+=4) rows.push(g.items.slice(i,i+4));
+
+    html+=`<div class="p-section">
+      <div class="p-shelf-hdr">
+        <div class="p-shelf-hdr-name">🗄 ${esc(g.shelfLabel)}</div>
+        <div class="p-shelf-hdr-count">${g.items.length} 筆 · ${total} 件</div>
+      </div>
+      ${rows.map(row=>{
+        const cells=[...row];
+        while(cells.length<4) cells.push(null);
+        return`<div class="pg">${cells.map(c=>c
+          ?`<div class="pl"><div class="pl-qty">${c.qty}</div><div class="pl-bc"><svg data-code="${c.code}" data-type="${c.type}"></svg></div></div>`
+          :`<div class="pl" style="border-color:transparent"></div>`
+        ).join('')}</div>`;
+      }).join('')}
+    </div>`;
+  });
+
+  doc.innerHTML=html;
+  doc.querySelectorAll('svg[data-code]').forEach(svg=>{
+    try{JsBarcode(svg,svg.dataset.code,{format:bcFormat(svg.dataset.type),width:1.4,height:48,displayValue:true,fontSize:7,margin:2,background:'#fff',lineColor:'#000',textMargin:1});}catch(e){}
+  });
+  setTimeout(()=>window.print(),150);
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');}
+
+renderList();renderShelves();
+</script>
+</body>
+</html>
