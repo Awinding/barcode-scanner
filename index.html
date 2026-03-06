@@ -14,23 +14,15 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased}
 .app{display:flex;flex-direction:column;height:100vh;height:-webkit-fill-available}
-
-/* header */
 .hdr{background:var(--navy);padding:max(env(safe-area-inset-top,0px),10px) 16px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .hdr-title{font-family:var(--mono);font-size:.85rem;color:#fff;letter-spacing:2px;font-weight:600}
 .hdr-pill{font-family:var(--mono);font-size:.62rem;font-weight:500;letter-spacing:1px;background:var(--orange);color:#fff;padding:3px 9px;border-radius:99px}
-
-/* tabs */
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--navy2);flex-shrink:0}
 .tab{padding:10px 2px 8px;text-align:center;font-size:.68rem;font-weight:600;color:rgba(255,255,255,.4);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;user-select:none;-webkit-user-select:none}
 .tab.on{color:#fff;border-bottom-color:var(--orange)}
-
-/* panels */
 .panels{flex:1;overflow:hidden;position:relative}
 .panel{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;display:none;-webkit-overflow-scrolling:touch}
 .panel.on{display:block}
-
-/* ── SCAN ── */
 #scanner-container{width:100%;aspect-ratio:4/3;background:#000;position:relative;overflow:hidden;display:block}
 #scanner-container video{width:100%;height:100%;object-fit:cover;display:block}
 #scanner-container canvas.drawingBuffer{display:none!important}
@@ -50,7 +42,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 @keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
 .cam-txt{font-family:var(--mono);font-size:.68rem;color:rgba(255,255,255,.6);flex:1}
 .cam-btns{display:flex;gap:8px;padding:10px 14px}
-
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:none;border-radius:8px;cursor:pointer;font-family:var(--sans);font-size:.83rem;font-weight:600;padding:10px 16px;transition:all .15s;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .btn-primary{background:var(--orange);color:#fff;flex:1}
 .btn-primary:active{background:#b04008}
@@ -59,20 +50,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 .btn-green{background:var(--green);color:#fff}
 .btn-green:active{background:#147040}
 .btn-red{background:transparent;color:var(--red);border:1.5px solid rgba(192,57,43,.3);font-size:.78rem}
-
-/* ios fallback */
 .ios-fb{display:none;margin:0 14px 10px;padding:10px 14px;background:var(--or-bg);border:1.5px dashed var(--orange);border-radius:8px;text-align:center}
 .ios-fb p{font-size:.78rem;color:var(--orange);font-weight:600;margin-bottom:8px}
-
-/* manual */
 .sec{padding:0 14px 14px}
 .sec-lbl{font-size:.65rem;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
 .row{display:flex;gap:8px}
 .field{flex:1;background:var(--white);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:var(--mono);font-size:.88rem;color:var(--ink);-webkit-appearance:none}
 .field:focus{outline:none;border-color:var(--orange)}
 .field::placeholder{font-size:.75rem;color:var(--muted);font-family:var(--sans)}
-
-/* ── BOTTOM SHEET ── */
 .sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
 .sheet-bg.show{display:block}
 .sheet{position:fixed;bottom:0;left:0;right:0;z-index:201;background:var(--white);border-radius:20px 20px 0 0;padding:0 20px max(env(safe-area-inset-bottom,0px),24px);transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.1,.64,1)}
@@ -94,12 +79,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 .chip{padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:99px;font-size:.75rem;font-weight:500;color:var(--ink);cursor:pointer}
 .chip:active,.chip.sel{background:var(--navy);color:#fff;border-color:var(--navy)}
 .sheet-btn{width:100%;padding:14px;font-size:1rem;border-radius:12px;margin-top:6px}
-
-/* flash */
 @keyframes fl{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
 .flash-ov{position:absolute;inset:0;background:rgba(26,148,84,.4);pointer-events:none;animation:fl .45s ease forwards}
-
-/* ── LIST ── */
 .list-hdr{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--white);position:sticky;top:0;z-index:10}
 .lhc{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
 .lhc b{color:var(--orange)}
@@ -116,8 +97,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 .list-footer{position:sticky;bottom:0;background:var(--white);border-top:1px solid var(--border);padding:10px 14px;display:flex;gap:8px}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:10px;color:var(--muted)}
 .empty .big{font-size:2.5rem;opacity:.25}
-
-/* ── SHELF PAGE ── */
 .shelf-tb{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--white);position:sticky;top:0;z-index:10}
 .shelf-add{padding:12px 14px;display:flex;gap:8px;background:var(--white);border-bottom:1px solid var(--border)}
 .shelf-add-in{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:var(--sans);font-size:.88rem;color:var(--ink);-webkit-appearance:none}
@@ -137,8 +116,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 .si-type{font-family:var(--mono);font-size:.6rem;color:var(--muted)}
 .sunassigned{margin:12px 14px;padding:12px 14px;background:var(--white);border:1.5px dashed var(--border);border-radius:10px}
 .sunassigned-lbl{font-size:.65rem;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
-
-/* ── PRINT PANEL ── */
 .print-info{margin:12px 14px 0;padding:10px 13px;background:var(--white);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:10px}
 .pi-icon{font-size:1.2rem}
 .pi-txt{font-size:.75rem;color:var(--muted);line-height:1.5}
@@ -155,14 +132,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 .pv-empty{background:var(--bg);display:flex;align-items:center;justify-content:center}
 .pv-empty span{font-size:.55rem;color:var(--border)}
 .print-footer{position:sticky;bottom:0;background:var(--white);border-top:1px solid var(--border);padding:10px 14px}
-
-/* ── TOAST ── */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--navy);color:#fff;padding:9px 18px;border-radius:99px;font-size:.8rem;font-weight:500;z-index:9999;pointer-events:none;transition:transform .25s cubic-bezier(.34,1.56,.64,1);white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.ok{background:var(--green)}
 .toast.bad{background:var(--red)}
-
-/* ── PRINT MEDIA ── */
 @media print{
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{background:#fff}
@@ -195,8 +168,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
     <div class="tab" id="tab-print" onclick="goTab('print');renderPV()">🖨 列印</div>
   </div>
   <div class="panels">
-
-    <!-- SCAN -->
     <div class="panel on" id="p-scan">
       <div id="scanner-container">
         <div class="vf">
@@ -231,8 +202,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
       </div>
       <div style="height:20px"></div>
     </div>
-
-    <!-- LIST -->
     <div class="panel" id="p-list">
       <div class="list-hdr">
         <div class="lhc">共 <b id="lc-n">0</b> 筆 / 合計 <b id="lc-t">0</b> 件</div>
@@ -243,8 +212,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
         <button class="btn btn-primary" style="flex:1" onclick="goTab('print');renderPV()">前往列印 →</button>
       </div>
     </div>
-
-    <!-- SHELF -->
     <div class="panel" id="p-shelf">
       <div class="shelf-tb">
         <div style="font-size:.78rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase">貨架資料</div>
@@ -258,8 +225,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
       </div>
       <div id="slist-wrap" class="slist"></div>
     </div>
-
-    <!-- PRINT -->
     <div class="panel" id="p-print">
       <div class="print-info">
         <div class="pi-icon">📄</div>
@@ -274,10 +239,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
     </div>
   </div>
 </div>
-
 <div id="pdoc"></div>
-
-<!-- BOTTOM SHEET -->
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()">
   <div class="sheet" id="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
@@ -299,13 +261,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
     <button class="btn btn-green sheet-btn" onclick="confirmAdd()">✓ 確認加入</button>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
 let items=[],shelves=[],pCode=null,pType=null,camOn=false,cooldown=false,lastShelf='';
-
-/* tabs */
 function goTab(t){
   ['scan','list','shelf','print'].forEach(id=>{
     document.getElementById('p-'+id).classList.toggle('on',id===t);
@@ -314,24 +272,18 @@ function goTab(t){
   if(t==='list')renderList();
   if(t==='shelf')renderShelves();
 }
-
-/* toast */
 let _tt;
 function toast(m,c=''){
   const el=document.getElementById('toast');
   el.textContent=m;el.className='toast show'+(c?' '+c:'');
   clearTimeout(_tt);_tt=setTimeout(()=>el.className='toast',2300);
 }
-
-/* type detection */
 function dtype(c){
   if(/^\d{13}$/.test(c))return'EAN-13';
   if(/^\d{12}$/.test(c))return'UPC-A';
   if(/^\d{8}$/.test(c))return'EAN-8';
   return null;
 }
-
-/* handle scanned code */
 function handleCode(code){
   if(cooldown)return;
   const type=dtype(code);
@@ -344,8 +296,6 @@ function handleCode(code){
   setDot('live','✓ '+type+': '+code);
   openSheet(code,type);
 }
-
-/* sheet */
 function openSheet(code,type){
   pCode=code;pType=type;
   document.getElementById('sh-code').textContent=code;
@@ -370,7 +320,6 @@ function renderChips(){
   ).join('');
 }
 function pickChip(s){document.getElementById('sh-shelf-in').value=s;renderChips();}
-
 function confirmAdd(){
   if(!pCode)return;
   const qty=Math.max(1,parseInt(document.getElementById('sh-qty').value)||1);
@@ -381,8 +330,6 @@ function confirmAdd(){
   toast('✓ …'+pCode.slice(-6)+' ×'+qty,'ok');
   updateBadge();closeSheet();
 }
-
-/* manual */
 function manualGo(){
   const v=document.getElementById('min').value.trim();
   const t=dtype(v);
@@ -390,8 +337,6 @@ function manualGo(){
   document.getElementById('min').value='';
   handleCode(v);
 }
-
-/* badge */
 function updateBadge(){
   const b=document.getElementById('bdg');
   b.textContent=items.length;b.style.display=items.length?'inline':'none';
@@ -399,8 +344,6 @@ function updateBadge(){
   if(n)n.textContent=items.length;
   if(t)t.textContent=items.reduce((s,i)=>s+i.qty,0);
 }
-
-/* list */
 function renderList(){
   const c=document.getElementById('ilist-wrap');
   updateBadge();
@@ -420,8 +363,6 @@ function renderList(){
 }
 function delItem(i){items.splice(i,1);updateBadge();renderList();}
 function clearAll(){if(!items.length)return;if(!confirm('確定清除所有項目？'))return;items=[];updateBadge();renderList();}
-
-/* shelves */
 function addShelf(){
   const v=document.getElementById('new-shelf').value.trim();
   if(!v){toast('請輸入貨架名稱','bad');return;}
@@ -461,11 +402,7 @@ function renderShelves(){
   });
   wrap.innerHTML=html;
 }
-
-/* barcode format */
 function bfmt(type){return type==='EAN-13'?'EAN13':type==='UPC-A'?'UPC':'EAN8';}
-
-/* groups for print */
 function getGroups(){
   const groups=[];
   const una=items.filter(i=>!i.shelf);
@@ -475,8 +412,6 @@ function getGroups(){
   seen.forEach(s=>groups.push({label:s,items:items.filter(i=>i.shelf===s)}));
   return groups;
 }
-
-/* print preview */
 function renderPV(){
   const wrap=document.getElementById('pv-wrap');
   if(!items.length){wrap.innerHTML='<div class="empty"><div class="big">🖨️</div><div>清單為空</div></div>';return;}
@@ -508,8 +443,6 @@ function renderPV(){
     });
   });
 }
-
-/* print */
 function doPrint(){
   if(!items.length){toast('清單為空','bad');return;}
   const groups=getGroups();
@@ -538,8 +471,6 @@ function doPrint(){
   });
   setTimeout(()=>window.print(),150);
 }
-
-/* camera */
 function startCam(){
   setDot('','啟動相機中…');
   document.getElementById('btn-start').style.display='none';
@@ -577,8 +508,6 @@ function setDot(s,m){
   document.getElementById('sdot').className='dot'+(s?' '+s:'');
   document.getElementById('stxt').textContent=m;
 }
-
-/* ios file fallback */
 document.getElementById('iosf').addEventListener('change',function(e){
   const file=e.target.files[0];if(!file)return;
   const url=URL.createObjectURL(file);
@@ -595,7 +524,6 @@ document.getElementById('iosf').addEventListener('change',function(e){
   };
   img.src=url;e.target.value='';
 });
-
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');}
 renderList();renderShelves();
 </script>
