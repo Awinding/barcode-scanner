@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>條碼掃描系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+TC:wght@400;500;600;700&display=swap');
+:root{--bg:#f0eeea;--white:#fff;--border:#d5d2cc;--navy:#1b2340;--navy2:#2c3660;--ink:#1a1a1a;--muted:#888480;--orange:#d4500a;--or-bg:#fde8dc;--green:#1a9454;--red:#c0392b;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans TC',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased}
+.app{display:flex;flex-direction:column;height:100vh;height:-webkit-fill-available}
+
+/* header */
+.hdr{background:var(--navy);padding:max(env(safe-area-inset-top,0px),10px) 16px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.hdr-title{font-family:var(--mono);font-size:.85rem;color:#fff;letter-spacing:2px;font-weight:600}
+.hdr-pill{font-family:var(--mono);font-size:.62rem;font-weight:500;letter-spacing:1px;background:var(--orange);color:#fff;padding:3px 9px;border-radius:99px}
+
+/* tabs */
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--navy2);flex-shrink:0}
+.tab{padding:10px 2px 8px;text-align:center;font-size:.68rem;font-weight:600;color:rgba(255,255,255,.4);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;user-select:none;-webkit-user-select:none}
+.tab.on{color:#fff;border-bottom-color:var(--orange)}
+
+/* panels */
+.panels{flex:1;overflow:hidden;position:relative}
+.panel{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;display:none;-webkit-overflow-scrolling:touch}
+.panel.on{display:block}
+
+/* ── SCAN ── */
+#scanner-container{width:100%;aspect-ratio:4/3;background:#000;position:relative;overflow:hidden;display:block}
+#scanner-container video{width:100%;height:100%;object-fit:cover;display:block}
+#scanner-container canvas.drawingBuffer{display:none!important}
+.vf{position:absolute;inset:0;pointer-events:none}
+.vf-box{position:absolute;top:25%;left:12%;right:12%;bottom:25%}
+.vf-corner{position:absolute;width:20px;height:20px;border:2.5px solid var(--orange)}
+.tl{top:0;left:0;border-right:none;border-bottom:none}
+.tr{top:0;right:0;border-left:none;border-bottom:none}
+.bl{bottom:0;left:0;border-right:none;border-top:none}
+.br{bottom:0;right:0;border-left:none;border-top:none}
+@keyframes sw{0%{top:25%}50%{top:73%}100%{top:25%}}
+.vf-line{position:absolute;left:12%;right:12%;height:1.5px;background:linear-gradient(90deg,transparent,var(--orange),transparent);box-shadow:0 0 8px var(--orange);animation:sw 2.2s ease-in-out infinite}
+.cam-bar{background:var(--navy);padding:8px 14px;display:flex;align-items:center;gap:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.live{background:var(--green);box-shadow:0 0 5px var(--green);animation:bl 1.4s infinite}
+.dot.err{background:var(--red)}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+.cam-txt{font-family:var(--mono);font-size:.68rem;color:rgba(255,255,255,.6);flex:1}
+.cam-btns{display:flex;gap:8px;padding:10px 14px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:none;border-radius:8px;cursor:pointer;font-family:var(--sans);font-size:.83rem;font-weight:600;padding:10px 16px;transition:all .15s;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.btn-primary{background:var(--orange);color:#fff;flex:1}
+.btn-primary:active{background:#b04008}
+.btn-outline{background:var(--white);color:var(--ink);border:1.5px solid var(--border)}
+.btn-outline:active{background:var(--bg)}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:active{background:#147040}
+.btn-red{background:transparent;color:var(--red);border:1.5px solid rgba(192,57,43,.3);font-size:.78rem}
+
+/* ios fallback */
+.ios-fb{display:none;margin:0 14px 10px;padding:10px 14px;background:var(--or-bg);border:1.5px dashed var(--orange);border-radius:8px;text-align:center}
+.ios-fb p{font-size:.78rem;color:var(--orange);font-weight:600;margin-bottom:8px}
+
+/* manual */
+.sec{padding:0 14px 14px}
+.sec-lbl{font-size:.65rem;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.row{display:flex;gap:8px}
+.field{flex:1;background:var(--white);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:var(--mono);font-size:.88rem;color:var(--ink);-webkit-appearance:none}
+.field:focus{outline:none;border-color:var(--orange)}
+.field::placeholder{font-size:.75rem;color:var(--muted);font-family:var(--sans)}
+
+/* ── BOTTOM SHEET ── */
+.sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.sheet-bg.show{display:block}
+.sheet{position:fixed;bottom:0;left:0;right:0;z-index:201;background:var(--white);border-radius:20px 20px 0 0;padding:0 20px max(env(safe-area-inset-bottom,0px),24px);transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.1,.64,1)}
+.sheet.show{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;border-radius:99px;background:var(--border);margin:10px auto 16px}
+.sheet-code{font-family:var(--mono);font-size:1.05rem;font-weight:600;letter-spacing:3px;color:var(--ink);margin-bottom:2px}
+.stag{display:inline-block;font-family:var(--mono);font-size:.65rem;padding:2px 7px;border-radius:4px;margin-bottom:14px}
+.t13{background:var(--or-bg);color:var(--orange)}
+.t8{background:#e8ecf8;color:var(--navy2)}
+.tupc{background:#edf7ed;color:var(--green)}
+.tupce{background:#f3e8ff;color:#7c3aed}
+.sheet-row{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.sheet-row label{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase}
+.qty-input{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:12px 16px;font-family:var(--mono);font-size:2rem;font-weight:600;color:var(--orange);text-align:center;letter-spacing:4px;-webkit-appearance:none}
+.qty-input:focus{outline:none;border-color:var(--orange);background:#fff}
+/* 數量欄位空白時顯示點此提示 */
+.qty-input::placeholder{font-size:1rem;letter-spacing:0;color:var(--muted);font-family:var(--sans)}
+@keyframes pulse-border{0%,100%{border-color:var(--orange)}50%{border-color:#f09060}}
+.qty-input.pulse{animation:pulse-border 1s ease infinite;border-color:var(--orange)}
+.shelf-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-family:var(--sans);font-size:.95rem;color:var(--ink);-webkit-appearance:none}
+.shelf-input:focus{outline:none;border-color:var(--orange);background:#fff}
+.shelf-input::placeholder{color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:99px;font-size:.75rem;font-weight:500;color:var(--ink);cursor:pointer}
+.chip:active,.chip.sel{background:var(--navy);color:#fff;border-color:var(--navy)}
+.sheet-btn{width:100%;padding:14px;font-size:1rem;border-radius:12px;margin-top:6px}
+
+/* flash */
+@keyframes fl{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.flash-ov{position:absolute;inset:0;background:rgba(26,148,84,.4);pointer-events:none;animation:fl .45s ease forwards}
+
+/* ── LIST ── */
+.list-hdr{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--white);position:sticky;top:0;z-index:10}
+.lhc{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+.lhc b{color:var(--orange)}
+.ilist{padding:10px 14px;display:flex;flex-direction:column;gap:8px;padding-bottom:80px}
+.icard{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.iidx{width:22px;height:22px;border-radius:50%;background:var(--bg);font-family:var(--mono);font-size:.62rem;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.iinfo{flex:1;min-width:0}
+.icode{font-family:var(--mono);font-size:.82rem;color:var(--ink);letter-spacing:1.5px}
+.ishelf{font-size:.72rem;color:var(--navy2);font-weight:600;margin-top:2px}
+.ishelf span{background:#e8ecf8;padding:1px 7px;border-radius:4px}
+.iqty{background:var(--or-bg);color:var(--orange);font-family:var(--mono);font-size:1rem;font-weight:700;padding:4px 10px;border-radius:7px;min-width:36px;text-align:center;flex-shrink:0}
+.idel{width:26px;height:26px;border-radius:6px;border:none;background:transparent;color:#ccc;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.idel:active{color:var(--red)}
+.list-footer{position:sticky;bottom:0;background:var(--white);border-top:1px solid var(--border);padding:10px 14px;display:flex;gap:8px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:10px;color:var(--muted)}
+.empty .big{font-size:2.5rem;opacity:.25}
+
+/* ── SHELF PAGE ── */
+.shelf-tb{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--white);position:sticky;top:0;z-index:10}
+.shelf-add{padding:12px 14px;display:flex;gap:8px;background:var(--white);border-bottom:1px solid var(--border)}
+.shelf-add-in{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:var(--sans);font-size:.88rem;color:var(--ink);-webkit-appearance:none}
+.shelf-add-in:focus{outline:none;border-color:var(--orange)}
+.shelf-add-in::placeholder{color:var(--muted)}
+.slist{padding:10px 14px;display:flex;flex-direction:column;gap:12px;padding-bottom:40px}
+.sblock{background:var(--white);border:1.5px solid var(--border);border-radius:12px;overflow:hidden}
+.sblock-hdr{padding:10px 14px;background:var(--navy);display:flex;align-items:center;justify-content:space-between}
+.sblock-name{font-family:var(--mono);font-size:.85rem;color:#fff;font-weight:600;letter-spacing:1px}
+.sblock-cnt{font-family:var(--mono);font-size:.65rem;color:rgba(255,255,255,.5)}
+.sblock-del{background:transparent;border:none;color:rgba(255,255,255,.4);font-size:.8rem;cursor:pointer;padding:2px 6px}
+.sitems{padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+.sitem{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bg)}
+.sitem:last-child{border-bottom:none}
+.si-code{font-family:var(--mono);font-size:.78rem;color:var(--ink);flex:1;letter-spacing:1px}
+.si-qty{font-family:var(--mono);font-size:.85rem;color:var(--orange);font-weight:600;background:var(--or-bg);padding:2px 8px;border-radius:5px}
+.si-type{font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+.sunassigned{margin:12px 14px;padding:12px 14px;background:var(--white);border:1.5px dashed var(--border);border-radius:10px}
+.sunassigned-lbl{font-size:.65rem;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+
+/* ── PRINT PANEL ── */
+.print-info{margin:12px 14px 0;padding:10px 13px;background:var(--white);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:10px}
+.pi-icon{font-size:1.2rem}
+.pi-txt{font-size:.75rem;color:var(--muted);line-height:1.5}
+.pi-txt b{color:var(--ink)}
+.pv-wrap{padding:12px 14px;display:flex;flex-direction:column;gap:14px;padding-bottom:80px}
+.pv-sec{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.pv-sec-hdr{background:var(--navy);padding:7px 12px;display:flex;align-items:center;justify-content:space-between;border-left:4px solid var(--orange)}
+.pv-sec-name{font-family:var(--mono);font-size:.78rem;color:#fff;font-weight:600;letter-spacing:1px}
+.pv-sec-cnt{font-family:var(--mono);font-size:.62rem;color:rgba(255,255,255,.5)}
+.pv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)}
+.pv-cell{background:#fff;padding:4px 3px 2px;display:flex;flex-direction:column;align-items:center;min-height:54px;overflow:hidden}
+.pv-qty{font-family:var(--mono);font-size:.7rem;font-weight:700;color:var(--ink);line-height:1;margin-bottom:1px}
+.pv-cell svg{max-width:100%;height:auto}
+.pv-empty{background:var(--bg);display:flex;align-items:center;justify-content:center}
+.pv-empty span{font-size:.55rem;color:var(--border)}
+.print-footer{position:sticky;bottom:0;background:var(--white);border-top:1px solid var(--border);padding:10px 14px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--navy);color:#fff;padding:9px 18px;border-radius:99px;font-size:.8rem;font-weight:500;z-index:9999;pointer-events:none;transition:transform .25s cubic-bezier(.34,1.56,.64,1);white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{background:var(--green)}
+.toast.bad{background:var(--red)}
+
+/* ── PRINT MEDIA ── */
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff}
+  .app{display:none}
+  .toast{display:none!important}
+  .sheet-bg{display:none!important}
+  #pdoc{display:block!important}
+  @page{size:A4 portrait;margin:6mm}
+  /* 每頁固定 48 格，自動縮放填滿 A4 */
+  .p-page{
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    grid-template-rows:repeat(12,1fr);
+    gap:0.5mm;
+    page-break-after:always;
+    height:calc(297mm - 12mm);
+    box-sizing:border-box;
+  }
+  .p-page:last-child{page-break-after:auto}
+  /* 貨架標題列：橫跨全行 */
+  .p-shdr{
+    grid-column:1/-1;
+    background:none!important;color:#000!important;
+    padding:1mm 0 1mm 3mm;
+    display:flex;align-items:baseline;justify-content:space-between;
+    border-left:3pt solid #1b2340;
+    height:auto;
+  }
+  .p-shdr-name{font-family:'Helvetica Neue',Arial,sans-serif;font-size:8pt;font-weight:700;letter-spacing:.5pt;color:#000}
+  .p-shdr-cnt{font-family:'Helvetica Neue',Arial,sans-serif;font-size:6.5pt;color:#666}
+  .pl{
+    width:100%;height:100%;
+    border:.3pt solid #ccc;
+    padding:.3mm 1mm;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    overflow:hidden;background:#fff;page-break-inside:avoid;
+    box-sizing:border-box;
+  }
+  .pl-qty{font-family:'Helvetica Neue',Arial,sans-serif;font-size:11pt;font-weight:900;color:#000;line-height:1;margin-bottom:.3mm;text-align:center;width:100%}
+  .pl-bc{flex:1;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden}
+  .pl-bc svg{max-width:100%;height:auto;max-height:16mm}
+  .pl-empty{border-color:transparent!important}
+}
+#pdoc{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div class="hdr-title">▐ BARCODE</div>
+    <div class="hdr-pill">A4 · 48/頁</div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" id="tab-scan" onclick="goTab('scan')">📷 掃描</div>
+    <div class="tab" id="tab-list" onclick="goTab('list')">清單<span id="bdg" style="display:none;background:var(--orange);color:#fff;border-radius:99px;padding:0 5px;font-size:.6rem;margin-left:3px">0</span></div>
+    <div class="tab" id="tab-shelf" onclick="goTab('shelf')">🗄 貨架</div>
+    <div class="tab" id="tab-print" onclick="goTab('print');renderPV()">🖨 列印</div>
+  </div>
+  <div class="panels">
+
+    <!-- SCAN -->
+    <div class="panel on" id="p-scan">
+      <div id="scanner-container">
+        <div class="vf">
+          <div class="vf-box">
+            <div class="vf-corner tl"></div><div class="vf-corner tr"></div>
+            <div class="vf-corner bl"></div><div class="vf-corner br"></div>
+          </div>
+          <div class="vf-line"></div>
+        </div>
+      </div>
+      <div class="cam-bar">
+        <div class="dot" id="sdot"></div>
+        <div class="cam-txt" id="stxt">點擊「啟動相機」開始掃描</div>
+      </div>
+      <div class="cam-btns">
+        <button class="btn btn-primary" id="btn-start" onclick="startCam()">▶ 啟動相機</button>
+        <button class="btn btn-outline" id="btn-stop" style="display:none" onclick="stopCam()">■ 停止</button>
+      </div>
+      <div class="ios-fb" id="ios-fb">
+        <p>相機啟動失敗 — 請改用拍照掃描</p>
+        <button class="btn btn-primary" onclick="document.getElementById('iosf').click()">📷 拍照掃描</button>
+        <input type="file" id="iosf" accept="image/*" capture="environment" style="display:none">
+      </div>
+      <div class="sec">
+        <div class="sec-lbl">手動輸入條碼</div>
+        <div class="row">
+          <input class="field" id="min" type="tel" inputmode="numeric"
+            placeholder="輸入 8、12 或 13 位數字…" maxlength="13"
+            onkeydown="if(event.key==='Enter')manualGo()">
+          <button class="btn btn-outline" onclick="manualGo()" style="white-space:nowrap;padding:9px 14px">確認</button>
+        </div>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+
+    <!-- LIST -->
+    <div class="panel" id="p-list">
+      <div class="list-hdr">
+        <div class="lhc">共 <b id="lc-n">0</b> 筆 / 合計 <b id="lc-t">0</b> 件</div>
+        <button class="btn btn-red" onclick="clearAll()">清除全部</button>
+      </div>
+      <div id="ilist-wrap"></div>
+      <div class="list-footer">
+        <button class="btn btn-primary" style="flex:1" onclick="goTab('print');renderPV()">前往列印 →</button>
+      </div>
+    </div>
+
+    <!-- SHELF -->
+    <div class="panel" id="p-shelf">
+      <div class="shelf-tb">
+        <div style="font-size:.78rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase">貨架資料</div>
+        <div style="font-family:var(--mono);font-size:.72rem;color:var(--muted)"><b id="sh-cnt" style="color:var(--orange)">0</b> 個貨架</div>
+      </div>
+      <div class="shelf-add">
+        <input class="shelf-add-in" id="new-shelf" type="text"
+          placeholder="新增貨架，例如：A貨架、冷凍區…" maxlength="20"
+          onkeydown="if(event.key==='Enter')addShelf()">
+        <button class="btn btn-primary" onclick="addShelf()" style="white-space:nowrap;padding:9px 16px">新增</button>
+      </div>
+      <div id="slist-wrap" class="slist"></div>
+    </div>
+
+    <!-- PRINT -->
+    <div class="panel" id="p-print">
+      <div class="print-info">
+        <div class="pi-icon">📄</div>
+        <div class="pi-txt"><b>A4 直向</b> — 依貨架分組，每筆 = 1 張標籤，數量印在條碼<b>上方</b></div>
+      </div>
+      <div class="pv-wrap" id="pv-wrap">
+        <div class="empty"><div class="big">🖨️</div><div>清單為空</div></div>
+      </div>
+      <div class="print-footer">
+        <button class="btn btn-primary" style="width:100%" onclick="doPrint()">🖨 列印 A4</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pdoc"></div>
+
+<!-- BOTTOM SHEET -->
+<div class="sheet-bg" id="sheet-bg" onclick="closeSheet()">
+  <div class="sheet" id="sheet" onclick="event.stopPropagation();document.getElementById('sh-qty').focus()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-code" id="sh-code">—</div>
+    <span class="stag" id="sh-type">—</span>
+    <div class="sheet-row">
+      <label>👆 點此輸入數量</label>
+      <input class="qty-input pulse" id="sh-qty" type="number" inputmode="numeric"
+        min="1" max="9999" placeholder="輸入數量…"
+        onclick="this.select()"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('sh-shelf-in').focus();}">
+    </div>
+    <div class="sheet-row">
+      <label>貨架（選填）</label>
+      <input class="shelf-input" id="sh-shelf-in" type="text"
+        placeholder="選擇或輸入貨架名稱…"
+        onclick="this.focus()"
+        onkeydown="if(event.key==='Enter')confirmAdd()">
+      <div class="chips" id="sh-chips"></div>
+    </div>
+    <button class="btn btn-green sheet-btn" onclick="confirmAdd()">✓ 確認加入</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let items=[],shelves=[],pCode=null,pType=null,camOn=false,cooldown=false,lastShelf='';
+// 連續偵測計數：短碼需要更多次確認避免誤讀
+const CONFIRM_LONG=2;  // EAN-13, UPC-A
+const CONFIRM_SHORT=4; // EAN-8, UPC-E（較容易誤讀）
+let lastSeen='';
+let seenCount=0;
+
+/* tabs */
+function goTab(t){
+  ['scan','list','shelf','print'].forEach(id=>{
+    document.getElementById('p-'+id).classList.toggle('on',id===t);
+    document.getElementById('tab-'+id).classList.toggle('on',id===t);
+  });
+  if(t==='list')renderList();
+  if(t==='shelf')renderShelves();
+}
+
+/* toast */
+let _tt;
+function toast(m,c=''){
+  const el=document.getElementById('toast');
+  el.textContent=m;el.className='toast show'+(c?' '+c:'');
+  clearTimeout(_tt);_tt=setTimeout(()=>el.className='toast',2300);
+}
+
+/* type detection */
+function dtype(c){
+  if(/^\d{13}$/.test(c)){
+    if(c.charAt(0)==='0') return'UPC-A';
+    return'EAN-13';
+  }
+  if(/^\d{12}$/.test(c))return'UPC-A';
+  if(/^\d{8}$/.test(c)){
+    // UPC-E 開頭是 0，EAN-8 開頭通常不是 0
+    if(c.charAt(0)==='0') return'UPC-E';
+    return'EAN-8';
+  }
+  if(/^\d{6}$/.test(c))return'UPC-E'; // Quagga 有時回傳 6 位 UPC-E
+  return null;
+}
+
+function normalizeCode(c,type){
+  if(type==='UPC-A'&&c.length===13) return c.slice(1);
+  // UPC-E 保留完整 8 位儲存，不在這裡裁切
+  return c;
+}
+
+function tryBarcode(el,code,type,width,height,fontSize){
+  const attempts=[];
+  if(type==='UPC-E'){
+    // 嘗試不同位數的 UPC-E
+    if(code.length===8) attempts.push({fmt:'UPC_E',val:code.slice(1,7)});
+    if(code.length===8) attempts.push({fmt:'UPC_E',val:code});
+    if(code.length===6) attempts.push({fmt:'UPC_E',val:code});
+    attempts.push({fmt:'CODE128',val:code}); // 最後 fallback
+  } else {
+    attempts.push({fmt:bfmt(type),val:code});
+    attempts.push({fmt:'CODE128',val:code});
+  }
+  const opts={width,height,displayValue:true,fontSize,margin:2,background:'#fff',lineColor:'#000',textMargin:1};
+  for(const a of attempts){
+    try{JsBarcode(el,a.val,{...opts,format:a.fmt});return;}catch(e){}
+  }
+}
+
+function bfmt(type){
+  if(type==='EAN-13')return'EAN13';
+  if(type==='UPC-A')return'UPC';
+  if(type==='UPC-E')return'UPC_E';
+  if(type==='EAN-8')return'EAN8';
+  return'CODE128'; // 保底
+}
+
+/* handle scanned code */
+function handleCode(code){
+  if(cooldown)return;
+  // Sheet 開著時忽略新掃描，避免覆蓋正在輸入的數量
+  if(pCode)return;
+  const type=dtype(code);
+  if(!type)return;
+  const normalized=normalizeCode(code,type);
+  cooldown=true;setTimeout(()=>cooldown=false,1800);
+  if(navigator.vibrate)navigator.vibrate([50,20,50]);
+  const sc=document.getElementById('scanner-container');
+  const fl=document.createElement('div');fl.className='flash-ov';
+  sc.appendChild(fl);setTimeout(()=>fl.remove(),450);
+  setDot('live','✓ '+type+': '+normalized);
+  openSheet(normalized,type);
+}
+
+/* sheet */
+function openSheet(code,type){
+  pCode=code;pType=type;
+  document.getElementById('sh-code').textContent=code;
+  const el=document.getElementById('sh-type');
+  el.textContent=type;el.className='stag '+(type==='EAN-13'?'t13':type==='UPC-A'?'tupc':type==='UPC-E'?'tupce':'t8');
+  document.getElementById('sh-qty').value='';
+  document.getElementById('sh-shelf-in').value=lastShelf;
+  renderChips();
+  document.getElementById('sheet-bg').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+  // iOS：短暫延遲後 focus，部分情況有效
+  setTimeout(()=>{
+    const q=document.getElementById('sh-qty');
+    q.focus();q.select();
+  },100);
+}
+function closeSheet(){
+  document.getElementById('sheet-bg').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+  pCode=null;pType=null;
+}
+function renderChips(){
+  const cur=document.getElementById('sh-shelf-in').value;
+  document.getElementById('sh-chips').innerHTML=shelves.map(s=>
+    `<div class="chip${s===cur?' sel':''}" onclick="pickChip('${esc(s)}')">${esc(s)}</div>`
+  ).join('');
+}
+function pickChip(s){document.getElementById('sh-shelf-in').value=s;renderChips();}
+
+function confirmAdd(){
+  if(!pCode)return;
+  const qty=Math.max(1,parseInt(document.getElementById('sh-qty').value)||1);
+  const shelf=document.getElementById('sh-shelf-in').value.trim();
+  lastShelf=shelf;
+  if(shelf&&!shelves.includes(shelf))shelves.push(shelf);
+  items.push({code:pCode,type:pType,qty,shelf});
+  toast('✓ …'+pCode.slice(-6)+' ×'+qty,'ok');
+  updateBadge();closeSheet();
+}
+
+/* manual */
+function manualGo(){
+  const v=document.getElementById('min').value.trim();
+  const t=dtype(v);
+  if(!t){toast('請輸入 8、12 或 13 位數字','bad');return;}
+  document.getElementById('min').value='';
+  handleCode(v);
+}
+
+/* badge */
+function updateBadge(){
+  const b=document.getElementById('bdg');
+  b.textContent=items.length;b.style.display=items.length?'inline':'none';
+  const n=document.getElementById('lc-n'),t=document.getElementById('lc-t');
+  if(n)n.textContent=items.length;
+  if(t)t.textContent=items.reduce((s,i)=>s+i.qty,0);
+}
+
+/* list */
+function renderList(){
+  const c=document.getElementById('ilist-wrap');
+  updateBadge();
+  if(!items.length){c.innerHTML='<div class="empty"><div class="big">📦</div><div>尚未掃描任何條碼</div></div>';return;}
+  c.innerHTML='<div class="ilist">'+items.map((item,i)=>`
+    <div class="icard">
+      <div class="iidx">${i+1}</div>
+      <div class="iinfo">
+        <div class="icode">${item.code}</div>
+        ${item.shelf?`<div class="ishelf"><span>🗄 ${esc(item.shelf)}</span></div>`:''}
+        <span class="stag ${item.type==='EAN-13'?'t13':item.type==='UPC-A'?'tupc':item.type==='UPC-E'?'tupce':'t8'}" style="font-size:.56rem;padding:1px 5px">${item.type}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <button onclick="adjQty(${i},-1)" style="width:28px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink)">−</button>
+        <input type="number" inputmode="numeric" min="1" max="9999"
+          value="${item.qty}"
+          onchange="setQty(${i},this.value)"
+          style="width:44px;height:28px;border:1.5px solid var(--border);border-radius:6px;text-align:center;font-family:var(--mono);font-size:.95rem;font-weight:700;color:var(--orange);background:var(--or-bg);-webkit-appearance:none">
+        <button onclick="adjQty(${i},1)" style="width:28px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink)">＋</button>
+        <div style="font-size:.65rem;color:var(--muted)">件</div>
+      </div>
+      <button class="idel" onclick="delItem(${i})">✕</button>
+    </div>`).join('')+'</div>';
+}
+function adjQty(i,d){
+  items[i].qty=Math.max(1,items[i].qty+d);
+  updateBadge();renderList();
+}
+function setQty(i,v){
+  items[i].qty=Math.max(1,parseInt(v)||1);
+  updateBadge();
+}
+function delItem(i){items.splice(i,1);updateBadge();renderList();}
+function clearAll(){if(!items.length)return;if(!confirm('確定清除所有項目？'))return;items=[];updateBadge();renderList();}
+
+/* shelves */
+function addShelf(){
+  const v=document.getElementById('new-shelf').value.trim();
+  if(!v){toast('請輸入貨架名稱','bad');return;}
+  if(shelves.includes(v)){toast('已存在','bad');return;}
+  shelves.push(v);document.getElementById('new-shelf').value='';
+  renderShelves();toast('貨架已新增 ✓','ok');
+}
+function delShelf(s){
+  if(!confirm('刪除貨架「'+s+'」？'))return;
+  shelves=shelves.filter(x=>x!==s);renderShelves();
+}
+function renderShelves(){
+  const wrap=document.getElementById('slist-wrap');
+  document.getElementById('sh-cnt').textContent=shelves.length;
+  if(!shelves.length&&!items.length){
+    wrap.innerHTML='<div class="empty"><div class="big">🗄️</div><div>尚無貨架資料</div></div>';return;
+  }
+  let html='';
+  const una=items.filter(i=>!i.shelf);
+  if(una.length){
+    html+=`<div class="sunassigned"><div class="sunassigned-lbl">⚠️ 未分配貨架 (${una.length} 筆)</div>
+    ${una.map(it=>`<div class="sitem"><div class="si-code">${it.code}</div><div class="si-type">${it.type}</div><div class="si-qty">${it.qty} 件</div></div>`).join('')}</div>`;
+  }
+  shelves.forEach(s=>{
+    const sit=items.filter(i=>i.shelf===s);
+    const tot=sit.reduce((x,i)=>x+i.qty,0);
+    html+=`<div class="sblock"><div class="sblock-hdr">
+      <div class="sblock-name">🗄 ${esc(s)}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="sblock-cnt">${sit.length} 筆 · ${tot} 件</div>
+        <button class="sblock-del" onclick="delShelf('${esc(s)}')">✕</button>
+      </div></div>
+      <div class="sitems">${sit.length
+        ?sit.map(it=>`<div class="sitem"><div class="si-code">${it.code}</div><div class="si-type">${it.type}</div><div class="si-qty">${it.qty} 件</div></div>`).join('')
+        :'<div style="font-size:.75rem;color:var(--muted);padding:4px 0">此貨架尚無商品</div>'
+      }</div></div>`;
+  });
+  wrap.innerHTML=html;
+}
+
+/* barcode format */
+function bcPlaceholder(){}
+
+/* groups for print */
+function getGroups(){
+  const groups=[];
+  const una=items.filter(i=>!i.shelf);
+  if(una.length)groups.push({label:'（未分配貨架）',items:una});
+  const seen=[];
+  items.forEach(i=>{if(i.shelf&&!seen.includes(i.shelf))seen.push(i.shelf);});
+  seen.forEach(s=>groups.push({label:s,items:items.filter(i=>i.shelf===s)}));
+  return groups;
+}
+
+/* print preview */
+function renderPV(){
+  const wrap=document.getElementById('pv-wrap');
+  if(!items.length){wrap.innerHTML='<div class="empty"><div class="big">🖨️</div><div>清單為空</div></div>';return;}
+  const groups=getGroups();
+  let html='';
+  groups.forEach((g,gi)=>{
+    const tot=g.items.reduce((s,i)=>s+i.qty,0);
+    const cells=[...g.items];
+    const rem=cells.length%4;if(rem)for(let x=0;x<4-rem;x++)cells.push(null);
+    html+=`<div class="pv-sec">
+      <div class="pv-sec-hdr">
+        <div class="pv-sec-name">🗄 ${esc(g.label)}</div>
+        <div class="pv-sec-cnt">${g.items.length} 筆 · ${tot} 件</div>
+      </div>
+      <div class="pv-grid" id="pvg${gi}">
+        ${cells.map((c,ci)=>c
+          ?`<div class="pv-cell"><div class="pv-qty">${c.qty}</div><svg id="pvs${gi}_${ci}"></svg></div>`
+          :`<div class="pv-cell pv-empty"><span>—</span></div>`
+        ).join('')}
+      </div></div>`;
+  });
+  wrap.innerHTML=html;
+  groups.forEach((g,gi)=>{
+    const cells=[...g.items];
+    const rem=cells.length%4;if(rem)for(let x=0;x<4-rem;x++)cells.push(null);
+    cells.forEach((item,ci)=>{
+      if(!item)return;
+      const el=document.querySelector(`#pvs${gi}_${ci}`);
+      if(!el)return;
+      tryBarcode(el,item.code,item.type,1,26,6);
+    });
+  });
+}
+
+/* print */
+function doPrint(){
+  if(!items.length){toast('清單為空','bad');return;}
+  const groups=getGroups();
+  const doc=document.getElementById('pdoc');
+
+  // 把所有 group 展平成「格子」序列，貨架標題是特殊格子
+  const slots=[]; // {type:'hdr'|'item'|'empty', ...}
+  groups.forEach(g=>{
+    const tot=g.items.reduce((s,i)=>s+i.qty,0);
+    slots.push({type:'hdr',label:g.label,cnt:g.items.length,tot});
+    g.items.forEach(it=>slots.push({type:'item',item:it}));
+  });
+
+  // 分頁：每頁 48 個「視覺格」，標題佔整行（4格）
+  const pages=[];
+  let page=[];
+  let rowCount=0; // 目前頁已用行數（每行4格）
+
+  for(const slot of slots){
+    if(slot.type==='hdr'){
+      // 標題佔 1 行
+      if(rowCount>=12){page=[];rowCount=0;pages.push(page);}
+      // 若頁面已有內容且剩不到2行，換頁
+      if(rowCount>0&&rowCount>=11){pages.push(page);page=[];rowCount=0;}
+      page.push(slot);
+      rowCount++;
+    } else {
+      // 每4個 item 佔1行
+      page.push(slot);
+      if(page.filter(s=>s.type==='item').length%4===0) rowCount++;
+      if(rowCount>=12){pages.push(page);page=[];rowCount=0;}
+    }
+  }
+  if(page.length) pages.push(page);
+
+  // 產生 HTML
+  let html='';
+  pages.forEach(pg=>{
+    // 把 items 補成4的倍數
+    const itemCount=pg.filter(s=>s.type==='item').length;
+    const padded=[...pg];
+    const rem=itemCount%4;
+    if(rem) for(let x=0;x<4-rem;x++) padded.push({type:'empty'});
+
+    html+=`<div class="p-page">`;
+    padded.forEach(slot=>{
+      if(slot.type==='hdr'){
+        html+=`<div class="p-shdr"><div class="p-shdr-name">🗄 ${esc(slot.label)}</div><div class="p-shdr-cnt">${slot.cnt} 筆 · ${slot.tot} 件</div></div>`;
+      } else if(slot.type==='item'){
+        html+=`<div class="pl"><div class="pl-qty">${slot.item.qty}</div><div class="pl-bc"><svg data-code="${slot.item.code}" data-type="${slot.item.type}"></svg></div></div>`;
+      } else {
+        html+=`<div class="pl pl-empty"></div>`;
+      }
+    });
+    html+=`</div>`;
+  });
+
+  doc.innerHTML=html;
+  doc.querySelectorAll('svg[data-code]').forEach(svg=>{
+    tryBarcode(svg,svg.dataset.code,svg.dataset.type,1.4,48,7);
+  });
+  setTimeout(()=>window.print(),200);
+}
+
+/* camera */
+function startCam(){
+  setDot('','啟動相機中…');
+  document.getElementById('btn-start').style.display='none';
+  document.getElementById('btn-stop').style.display='block';
+  Quagga.init({
+    inputStream:{name:'Live',type:'LiveStream',
+      target:document.getElementById('scanner-container'),
+      constraints:{
+        width:{ideal:1280},height:{ideal:720},
+        facingMode:{ideal:'environment'},
+        focusMode:'continuous',
+        advanced:[{focusMode:'continuous'},{zoom:1.0}],
+      },
+      area:{top:'25%',right:'15%',left:'15%',bottom:'25%'},
+    },
+    decoder:{
+      readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader'],
+      multiple:false,
+      debug:{drawBoundingBox:false,showFrequency:false,drawScanline:false,showPattern:false},
+    },
+    locate:true,
+    locator:{patchSize:'medium',halfSample:false},
+    frequency:15,
+  },function(err){
+    if(err){
+      console.error(err);
+      document.getElementById('ios-fb').style.display='block';
+      document.getElementById('btn-start').style.display='block';
+      document.getElementById('btn-stop').style.display='none';
+      setDot('err','相機啟動失敗，請使用拍照掃描');return;
+    }
+    const v=document.querySelector('#scanner-container video');
+    if(v){v.setAttribute('playsinline','');v.setAttribute('muted','');v.setAttribute('autoplay','');}
+    Quagga.start();camOn=true;
+    setDot('live','相機運行中 — 對準條碼…');
+  });
+  Quagga.onDetected(r=>{
+    if(!r||!r.codeResult)return;
+    // 信心值過濾：排除解碼品質差的結果
+    const codes=r.codeResult.decodedCodes;
+    if(codes){
+      const errors=codes.filter(c=>c.error!==undefined).map(c=>c.error);
+      if(errors.length){
+        const avgErr=errors.reduce((a,b)=>a+b,0)/errors.length;
+        if(avgErr>0.35)return; // 誤差超過 35% 直接丟棄（EAN-8 容許較高誤差）
+      }
+    }
+    const code=r.codeResult.code;
+    const type=dtype(code);
+    if(!type)return;
+    const needed=(type==='EAN-8'||type==='UPC-E')?CONFIRM_SHORT:CONFIRM_LONG;
+    if(code===lastSeen){
+      seenCount++;
+    } else {
+      lastSeen=code;
+      seenCount=1;
+    }
+    if(seenCount>=needed){
+      seenCount=0;lastSeen='';
+      handleCode(code);
+    }
+  });
+}
+function stopCam(){
+  if(!camOn)return;Quagga.stop();camOn=false;
+  setDot('','相機已停止');
+  document.getElementById('btn-start').style.display='block';
+  document.getElementById('btn-stop').style.display='none';
+}
+function setDot(s,m){
+  document.getElementById('sdot').className='dot'+(s?' '+s:'');
+  document.getElementById('stxt').textContent=m;
+}
+
+/* ios file fallback */
+document.getElementById('iosf').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return;
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  img.onload=function(){
+    Quagga.decodeSingle({
+      decoder:{readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader']},
+      locate:true,src:url,
+    },function(r){
+      URL.revokeObjectURL(url);
+      if(r&&r.codeResult)handleCode(r.codeResult.code);
+      else toast('未能識別條碼，請重試','bad');
+    });
+  };
+  img.src=url;e.target.value='';
+});
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');}
+renderList();renderShelves();
+</script>
+</body>
+</html>
