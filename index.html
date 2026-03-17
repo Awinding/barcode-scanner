@@ -714,14 +714,16 @@ async function generatePDF(){
         while(cells.length<4) cells.push(null);
         cells.forEach(c=>{
           const cell=document.createElement('div');
-          cell.style.cssText=`width:${CELL_W}px;height:${CELL_H}px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;background:#fff;padding:3px 2px 2px;${c?'border:0.5px solid #ccc':''}`;
+          cell.style.cssText=`width:${CELL_W}px;height:${CELL_H}px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;overflow:hidden;background:#fff;padding:3px 2px 2px;${c?'border:0.5px solid #ccc':''}`;
           if(c){
             const qty=document.createElement('div');
-            qty.style.cssText='font-family:Arial,sans-serif;font-size:18px;font-weight:900;color:#000;line-height:1.2;text-align:center;width:100%;flex-shrink:0';
+            qty.style.cssText='font-family:Arial,sans-serif;font-size:17px;font-weight:900;color:#000;line-height:1.15;text-align:center;width:100%;flex-shrink:0';
             qty.textContent=String(c.qty);
             const bcWrap=document.createElement('div');
-            bcWrap.style.cssText='flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0;overflow:hidden';
+            // bcWrap 剩餘高度 = 98 - 3(top) - 2(bottom) - ~20(qty) = ~73px
+            bcWrap.style.cssText='flex:1;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden;min-height:0';
             const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+            svg.style.cssText='display:block;width:100%;height:auto';
             bcWrap.appendChild(svg);
             cell.appendChild(qty);
             cell.appendChild(bcWrap);
@@ -734,7 +736,7 @@ async function generatePDF(){
     });
 
     wrap.appendChild(pageDiv);
-    svgTargets.forEach(({svg,code,type})=>tryBarcode(svg,code,type,1.5,52,12));
+    svgTargets.forEach(({svg,code,type})=>tryBarcode(svg,code,type,1.4,44,11));
     await new Promise(r=>setTimeout(r,200));
 
     const canvas=await html2canvas(pageDiv,{scale:1.5,backgroundColor:'#fff',logging:false});
