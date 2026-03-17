@@ -342,8 +342,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 <script>
 let items=[],shelves=[],pCode=null,pType=null,camOn=false,cooldown=false,lastShelf='';
 // 連續偵測計數：短碼需要更多次確認避免誤讀
-const CONFIRM_LONG=4;  // EAN-13, UPC-A（原本2，提高到4）
-const CONFIRM_SHORT=7; // EAN-8, UPC-E（原本4，提高到7）
+const CONFIRM_LONG=6;  // EAN-13, UPC-A
+const CONFIRM_SHORT=10; // EAN-8, UPC-E
 let lastSeen='';
 let seenCount=0;
 
@@ -421,7 +421,7 @@ function handleCode(code){
   const type=dtype(code);
   if(!type)return;
   const normalized=normalizeCode(code,type);
-  cooldown=true;setTimeout(()=>cooldown=false,2500);
+  cooldown=true;setTimeout(()=>cooldown=false,3000);
   if(navigator.vibrate)navigator.vibrate([50,20,50]);
   const sc=document.getElementById('scanner-container');
   const fl=document.createElement('div');fl.className='flash-ov';
@@ -695,9 +695,12 @@ async function generatePDF(){
     svgTargets.forEach(({svg,code,type})=>tryBarcode(svg,code,type,1.6,62,11));
     await new Promise(r=>setTimeout(r,200));
 
-    const canvas=await html2canvas(pageDiv,{scale:2,backgroundColor:'#fff',logging:false});
+    const canvas=await html2canvas(pageDiv,{scale:1.5,backgroundColor:'#fff',logging:false});
+    const imgData=canvas.toDataURL('image/jpeg',0.88);
+    // 立刻釋放 canvas 記憶體
+    canvas.width=0;canvas.height=0;
     if(pi>0) pdf.addPage();
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,210,297);
+    pdf.addImage(imgData,'JPEG',0,0,210,297);
     wrap.removeChild(pageDiv);
   }
 
@@ -739,12 +742,12 @@ function startCam(){
     inputStream:{name:'Live',type:'LiveStream',
       target:document.getElementById('scanner-container'),
       constraints:{
-        width:{ideal:1280},height:{ideal:720},
+        width:{ideal:640},height:{ideal:480},
         facingMode:{ideal:'environment'},
         focusMode:'continuous',
         advanced:[{focusMode:'continuous'},{zoom:1.0}],
       },
-      area:{top:'25%',right:'15%',left:'15%',bottom:'25%'},
+      area:{top:'20%',right:'10%',left:'10%',bottom:'20%'},
     },
     decoder:{
       readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader'],
@@ -752,8 +755,8 @@ function startCam(){
       debug:{drawBoundingBox:false,showFrequency:false,drawScanline:false,showPattern:false},
     },
     locate:true,
-    locator:{patchSize:'medium',halfSample:false},
-    frequency:15,
+    locator:{patchSize:'medium',halfSample:true},
+    frequency:8,
   },function(err){
     if(err){
       console.error(err);
@@ -775,7 +778,7 @@ function startCam(){
       const errors=codes.filter(c=>c.error!==undefined).map(c=>c.error);
       if(errors.length){
         const avgErr=errors.reduce((a,b)=>a+b,0)/errors.length;
-        if(avgErr>0.22)return; // 誤差超過 22% 丟棄（更嚴格）
+        if(avgErr>0.15)return; // 誤差超過 15% 丟棄
       }
     }
     const code=r.codeResult.code;
