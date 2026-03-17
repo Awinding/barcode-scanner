@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<title>條碼掃描系統</title>
+<title>緒瀚掃描－預盤系統</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -220,7 +220,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 <body>
 <div class="app">
   <div class="hdr">
-    <div class="hdr-title">▐ BARCODE</div>
+    <div class="hdr-title">▐ 緒瀚掃描－預盤系統</div>
     <div class="hdr-pill">A4 · 48/頁</div>
   </div>
   <div class="tabs">
@@ -619,8 +619,16 @@ function renderPV(){
 /* PDF generation */
 async function generatePDF(){
   if(!items.length){toast('清單為空','bad');return;}
+
+  // 檢查 CDN 是否載入成功
+  if(!window.jspdf||!window.html2canvas){
+    toast('PDF 套件載入失敗，請重新整理頁面','bad');return;
+  }
+
   const btn=document.getElementById('pdf-btn');
   btn.disabled=true;btn.textContent='⏳ 產生 PDF…';
+
+  try{
 
   const groups=getGroups();
 
@@ -628,7 +636,7 @@ async function generatePDF(){
   const PW=794,PH=1123,PAD=28,GAP=3,COLS=4;
   const CELL_W=Math.floor((PW-PAD*2-GAP*(COLS-1))/COLS);
   const HDR_H=30;
-  const CELL_H=100;
+  const CELL_H=82; // 12列×(82+3)+33 = 1053px < 1067px → 剛好48格
 
   const allRows=[];
   groups.forEach(g=>{
@@ -730,6 +738,13 @@ async function generatePDF(){
     a.href=url;a.download=filename;a.click();
     setTimeout(()=>URL.revokeObjectURL(url),3000);
     toast(`✅ PDF 已下載（${pages.length} 頁）`,'');
+  }
+  } catch(err){
+    console.error('PDF error:',err);
+    toast('PDF 產生失敗，請重試','bad');
+    const w=document.querySelector('div[style*="-9999px"]');
+    if(w) document.body.removeChild(w);
+    if(btn){btn.disabled=false;btn.textContent='📥 下載 PDF';}
   }
 }
 
