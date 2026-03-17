@@ -342,8 +342,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 <script>
 let items=[],shelves=[],pCode=null,pType=null,camOn=false,cooldown=false,lastShelf='';
 // 連續偵測計數：短碼需要更多次確認避免誤讀
-const CONFIRM_LONG=6;  // EAN-13, UPC-A
-const CONFIRM_SHORT=10; // EAN-8, UPC-E
+const CONFIRM_LONG=4;  // EAN-13, UPC-A
+const CONFIRM_SHORT=7; // EAN-8, UPC-E
 let lastSeen='';
 let seenCount=0;
 
@@ -421,7 +421,7 @@ function handleCode(code){
   const type=dtype(code);
   if(!type)return;
   const normalized=normalizeCode(code,type);
-  cooldown=true;setTimeout(()=>cooldown=false,3000);
+  cooldown=true;setTimeout(()=>cooldown=false,2000);
   if(navigator.vibrate)navigator.vibrate([50,20,50]);
   const sc=document.getElementById('scanner-container');
   const fl=document.createElement('div');fl.className='flash-ov';
@@ -778,7 +778,7 @@ function startCam(){
       const errors=codes.filter(c=>c.error!==undefined).map(c=>c.error);
       if(errors.length){
         const avgErr=errors.reduce((a,b)=>a+b,0)/errors.length;
-        if(avgErr>0.15)return; // 誤差超過 15% 丟棄
+        if(avgErr>0.25)return; // 誤差超過 25% 丟棄
       }
     }
     const code=r.codeResult.code;
