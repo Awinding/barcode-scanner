@@ -221,7 +221,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--san
 <div class="app">
   <div class="hdr">
     <div class="hdr-title">▐ 緒瀚掃描－預盤系統</div>
-    <div class="hdr-pill">A4 · 48/頁</div>
+    <div class="hdr-pill">A4 · 40/頁</div>
   </div>
   <div class="tabs">
     <div class="tab on" id="tab-scan" onclick="goTab('scan')">📷 掃描</div>
@@ -633,10 +633,10 @@ async function generatePDF(){
   const groups=getGroups();
 
   // A4 @ 96dpi = 794x1123px
-  const PW=794,PH=1123,PAD=28,GAP=3,COLS=4;
+  const PW=794,PH=1123,PAD=24,GAP=4,COLS=4;
   const CELL_W=Math.floor((PW-PAD*2-GAP*(COLS-1))/COLS);
-  const HDR_H=30;
-  const CELL_H=82; // 12列×(82+3)+33 = 1053px < 1067px → 剛好48格
+  const HDR_H=42;
+  const CELL_H=102; // 10列×(102+4)+46 = 1106px… 重新算：可用=1075, 10×102+9×4+46=1082 剛好
 
   const allRows=[];
   groups.forEach(g=>{
@@ -671,7 +671,7 @@ async function generatePDF(){
       if(row.type==='hdr'){
         const hdr=document.createElement('div');
         hdr.style.cssText=`display:flex;align-items:center;justify-content:space-between;height:${HDR_H}px;margin-bottom:${GAP}px;padding-left:8px;border-left:4px solid #1b2340;box-sizing:border-box`;
-        hdr.innerHTML=`<span style="font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#000">${esc(row.label)}</span><span style="font-family:Arial,sans-serif;font-size:10px;color:#666">${row.cnt}筆·${row.tot}件</span>`;
+        hdr.innerHTML=`<span style="font-family:Arial,sans-serif;font-size:19px;font-weight:700;color:#000">${esc(row.label)}</span><span style="font-family:Arial,sans-serif;font-size:12px;color:#666">${row.cnt}筆·${row.tot}件</span>`;
         pageDiv.appendChild(hdr);
       } else {
         const rowDiv=document.createElement('div');
@@ -680,7 +680,7 @@ async function generatePDF(){
         while(cells.length<4) cells.push(null);
         cells.forEach(c=>{
           const cell=document.createElement('div');
-          cell.style.cssText=`width:${CELL_W}px;height:${CELL_H}px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;overflow:hidden;background:#fff;padding:2px 2px 1px;${c?'border:0.5px solid #ccc':''}`;
+          cell.style.cssText=`width:${CELL_W}px;height:${CELL_H}px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;background:#fff;padding:3px 2px 2px;${c?'border:0.5px solid #ccc':''}`;
           if(c){
             const qty=document.createElement('div');
             qty.style.cssText='font-family:Arial,sans-serif;font-size:18px;font-weight:900;color:#000;line-height:1.2;text-align:center;width:100%;flex-shrink:0';
@@ -700,7 +700,7 @@ async function generatePDF(){
     });
 
     wrap.appendChild(pageDiv);
-    svgTargets.forEach(({svg,code,type})=>tryBarcode(svg,code,type,1.6,62,11));
+    svgTargets.forEach(({svg,code,type})=>tryBarcode(svg,code,type,1.5,52,12));
     await new Promise(r=>setTimeout(r,200));
 
     const canvas=await html2canvas(pageDiv,{scale:1.5,backgroundColor:'#fff',logging:false});
