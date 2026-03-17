@@ -636,49 +636,56 @@ async function generatePDF(){
   const PW=794,PH=1123,PAD=24,GAP=4,COLS=4;
   const CELL_W=Math.floor((PW-PAD*2-GAP*(COLS-1))/COLS);
   const HDR_H=42;
-  const CELL_H=102; // 10列×(102+4)+46 = 1106px… 重新算：可用=1075, 10×102+9×4+46=1082 剛好
+  const CELL_H=98; // 10列×(98+4)+46=1066px ≤ 1075px → 剛好40格
 
-  const allRows=[];
+  // 先把所有 item rows 展平，記住所屬 group
+  const flatRows=[];
   groups.forEach(g=>{
     const tot=g.items.reduce((s,i)=>s+i.qty,0);
-    allRows.push({type:'hdr',label:g.label,cnt:g.items.length,tot});
     for(let i=0;i<g.items.length;i+=4)
-      allRows.push({type:'items',items:g.items.slice(i,i+4)});
+      flatRows.push({type:'items',items:g.items.slice(i,i+4),grpLabel:g.label,grpCnt:g.items.length,grpTot:tot});
   });
 
+  // 分頁：每頁開頭都放當前貨架標題
   const pages=[];
-  let cur=[],usedH=0;
-  allRows.forEach(row=>{
-    const h=(row.type==='hdr'?HDR_H:CELL_H)+GAP;
-    if(usedH+h>PH-PAD*2&&cur.length){pages.push(cur);cur=[];usedH=0;}
-    cur.push(row);usedH+=h;
+  let cur=[],usedH=0,curLabel=null;
+  const shelfPageNum={};
+
+  const addHdr=(label,cnt,tot)=>{
+    if(!shelfPageNum[label]) shelfPageNum[label]=0;
+    shelfPageNum[label]++;
+    cur.push({type:'hdr',label,cnt,tot,pageNum:shelfPageNum[label]});
+    usedH+=HDR_H+GAP;
+  };
+
+  flatRows.forEach(row=>{
+    const{grpLabel,grpCnt,grpTot}=row;
+    const rowH=CELL_H+GAP;
+    const hdrH=HDR_H+GAP;
+
+    // 換貨架
+    if(grpLabel!==curLabel){
+      // 剩餘空間不夠放標題+至少一行條碼 → 換頁
+      if(cur.length&&usedH+hdrH+rowH>PH-PAD*2){
+        pages.push(cur);cur=[];usedH=0;
+      }
+      addHdr(grpLabel,grpCnt,grpTot);
+      curLabel=grpLabel;
+    }
+
+    // 這行放不下 → 換頁，新頁補標題
+    if(usedH+rowH>PH-PAD*2){
+      pages.push(cur);cur=[];usedH=0;
+      addHdr(grpLabel,grpCnt,grpTot);
+    }
+
+    cur.push(row);
+    usedH+=rowH;
   });
   if(cur.length) pages.push(cur);
 
-  // 計算每個貨架在第幾頁（第一頁、第二頁…）
-  const chineseNum=['一','二','三','四','五','六','七','八','九','十'];
-  const shelfPageCount={};
-  pages.forEach(pageRows=>{
-    pageRows.forEach(row=>{
-      if(row.type==='hdr'){
-        shelfPageCount[row.label]=(shelfPageCount[row.label]||0)+1;
-        row._pageNum=shelfPageCount[row.label];
-      }
-    });
-  });
-  // 計算每個貨架總頁數
-  const shelfTotalPages={...shelfPageCount};
-  // reset 再跑一次賦值
-  Object.keys(shelfPageCount).forEach(k=>shelfPageCount[k]=0);
-  pages.forEach(pageRows=>{
-    pageRows.forEach(row=>{
-      if(row.type==='hdr'){
-        shelfPageCount[row.label]=(shelfPageCount[row.label]||0)+1;
-        row._pageNum=shelfPageCount[row.label];
-        row._totalPages=shelfTotalPages[row.label];
-      }
-    });
-  });
+  // 計算每個貨架共幾頁（判斷要不要顯示頁碼）
+  const shelfTotalPages={...shelfPageNum};
 
   const wrap=document.createElement('div');
   wrap.style.cssText='position:fixed;left:-9999px;top:0;z-index:-1;background:#fff';
@@ -695,8 +702,10 @@ async function generatePDF(){
     pages[pi].forEach(row=>{
       if(row.type==='hdr'){
         const hdr=document.createElement('div');
-        hdr.style.cssText=`display:flex;align-items:center;justify-content:space-between;height:${HDR_H}px;margin-bottom:${GAP}px;padding-left:8px;border-left:4px solid #1b2340;box-sizing:border-box`;
-        hdr.innerHTML=`<span style="font-family:Arial,sans-serif;font-size:19px;font-weight:700;color:#000">${esc(row.label)}</span><span style="font-family:Arial,sans-serif;font-size:12px;color:#666">${row.cnt}筆·${row.tot}件</span>`;
+        hdr.style.cssText=`display:flex;align-items:center;justify-content:space-between;height:${HDR_H}px;margin-bottom:${GAP}px;padding-left:10px;border-left:5px solid #1b2340;box-sizing:border-box`;
+        const multiPage=shelfTotalPages[row.label]>1;
+        const pageLabel=multiPage?` 第${row.pageNum}頁`:'';
+        hdr.innerHTML=`<span style="font-family:Arial,sans-serif;font-size:19px;font-weight:700;color:#000">${esc(row.label)}<span style="font-size:14px;font-weight:400;color:#555">${pageLabel}</span></span><span style="font-family:Arial,sans-serif;font-size:12px;color:#666">${row.cnt}筆·${row.tot}件</span>`;
         pageDiv.appendChild(hdr);
       } else {
         const rowDiv=document.createElement('div');
